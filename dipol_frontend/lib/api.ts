@@ -15,12 +15,14 @@ const getApiUrl = () => {
   return 'https://dipol-backend.vercel.app';
 };
 
-const API_URL = getApiUrl().replace(/\/+$/, ''); // Sonundaki slash'ları temizle
+// API URL'ini temizle - hem başındaki hem sonundaki slash'ları kaldır
+const API_URL = getApiUrl().trim().replace(/\/+$/, '').replace(/^\/+/, '');
 
 // Server-side için API isteği
 export async function serverApiRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
   // Endpoint'in başındaki slash'ı kontrol et ve URL'i düzgün oluştur
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  // Çift slash'ı önlemek için API_URL'in sonunda slash yok, endpoint'in başında slash var
   const url = endpoint.startsWith('http') ? endpoint : `${API_URL}${cleanEndpoint}`;
 
   const isDev = process.env.NODE_ENV === 'development';
@@ -75,6 +77,7 @@ export async function apiRequest(
   // Server-side için absolute URL kullan
   // Endpoint'in başındaki slash'ı kontrol et ve URL'i düzgün oluştur
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  // Çift slash'ı önlemek için API_URL'in sonunda slash yok, endpoint'in başında slash var
   const url = endpoint.startsWith('http') 
     ? endpoint 
     : `${API_URL}${cleanEndpoint}`;
