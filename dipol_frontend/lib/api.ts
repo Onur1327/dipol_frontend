@@ -16,14 +16,18 @@ const getApiUrl = () => {
 };
 
 // API URL'ini temizle - hem başındaki hem sonundaki slash'ları kaldır
-const API_URL = getApiUrl().trim().replace(/\/+$/, '').replace(/^\/+/, '');
+// Önce trim, sonra başındaki ve sonundaki tüm slash'ları kaldır
+const API_URL = getApiUrl().trim().replace(/^https?:\/\//, (match) => match).replace(/\/+$/, '').replace(/^\/+/, '');
+// Eğer protocol yoksa ekle (güvenlik için)
+const cleanApiUrl = API_URL.startsWith('http') ? API_URL : `https://${API_URL}`;
+const FINAL_API_URL = cleanApiUrl.replace(/\/+$/, ''); // Son slash'ı kesinlikle kaldır
 
 // Server-side için API isteği
 export async function serverApiRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
-  // Endpoint'in başındaki slash'ı kontrol et ve URL'i düzgün oluştur
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  // Çift slash'ı önlemek için API_URL'in sonunda slash yok, endpoint'in başında slash var
-  const url = endpoint.startsWith('http') ? endpoint : `${API_URL}${cleanEndpoint}`;
+  // Endpoint'i temizle - başındaki slash'ları kaldır, sonra tek slash ekle
+  const cleanEndpoint = endpoint.replace(/^\/+/, ''); // Başındaki tüm slash'ları kaldır
+  // URL'i oluştur - FINAL_API_URL'in sonunda slash yok, endpoint'in başında slash var
+  const url = endpoint.startsWith('http') ? endpoint : `${FINAL_API_URL}/${cleanEndpoint}`;
 
   const isDev = process.env.NODE_ENV === 'development';
   const defaultCache: RequestCache = isDev ? 'no-store' : 'force-cache';
@@ -75,12 +79,12 @@ export async function apiRequest(
   }
 
   // Server-side için absolute URL kullan
-  // Endpoint'in başındaki slash'ı kontrol et ve URL'i düzgün oluştur
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  // Çift slash'ı önlemek için API_URL'in sonunda slash yok, endpoint'in başında slash var
+  // Endpoint'i temizle - başındaki slash'ları kaldır, sonra tek slash ekle
+  const cleanEndpoint = endpoint.replace(/^\/+/, ''); // Başındaki tüm slash'ları kaldır
+  // URL'i oluştur - FINAL_API_URL'in sonunda slash yok, endpoint'in başında slash var
   const url = endpoint.startsWith('http') 
     ? endpoint 
-    : `${API_URL}${cleanEndpoint}`;
+    : `${FINAL_API_URL}/${cleanEndpoint}`;
 
   // Debug için URL ve header'ları logla (production'da da görmek için)
   if (typeof window !== 'undefined') {
