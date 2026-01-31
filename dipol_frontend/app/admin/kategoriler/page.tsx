@@ -240,9 +240,7 @@ export default function AdminCategoriesPage() {
     // Eğer ana kategori düzenleniyorsa, alt kategorilerini yükle
     if (!parentId) {
       try {
-        const subRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'https://dipol-be.vercel.app'}/api/categories?parentId=${category._id}`
-        );
+        const subRes = await api.getCategories({ parentId: category._id });
         if (subRes.ok) {
           const subData = await subRes.json();
           const subs = (subData.categories || []).map((sub: Category) => ({
