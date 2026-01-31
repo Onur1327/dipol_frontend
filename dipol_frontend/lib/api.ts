@@ -117,7 +117,7 @@ export async function apiRequest(
     
     // Network hatası için daha açıklayıcı mesaj
     if (error?.message?.includes('Failed to fetch') || error?.name === 'TypeError') {
-      console.error(`[API Error] Backend'e bağlanılamıyor. Backend URL: ${API_URL}`);
+      console.error(`[API Error] Backend'e bağlanılamıyor. Backend URL: ${FINAL_API_URL}`);
       console.error(`[API Error] Backend'in çalıştığından emin olun: http://localhost:3002`);
     }
     
