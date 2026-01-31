@@ -123,9 +123,7 @@ export default function AdminCategoriesPage() {
       if (mainCategoryId) {
         if (editingCategory) {
           // Düzenleme modunda: Mevcut alt kategorileri al
-          const existingSubsRes = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || 'https://dipol-be.vercel.app'}/api/categories?parentId=${mainCategoryId}`
-          );
+          const existingSubsRes = await api.getCategories({ parentId: mainCategoryId });
           const existingSubs = existingSubsRes.ok ? (await existingSubsRes.json()).categories || [] : [];
           
           const validSubCategories = subCategories.filter(subCat => subCat.name.trim() && subCat.slug.trim());
