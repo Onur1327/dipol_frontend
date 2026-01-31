@@ -178,8 +178,20 @@ export default function Footer() {
               &copy; 2024 Dipol Butik. Tüm hakları saklıdır.
             </p>
             <div className="flex items-center justify-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2 bg-white rounded px-3 py-2">
-                <span className="text-xs font-semibold text-gray-700">iyzico ile Öde</span>
+              <div className="flex items-center gap-2">
+                <img 
+                  src="/iyzico.png" 
+                  alt="iyzico ile Öde" 
+                  className="h-8 object-contain"
+                  onError={(e) => {
+                    // Görsel yüklenemezse metin göster
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const parent = (e.target as HTMLImageElement).parentElement;
+                    if (parent) {
+                      parent.innerHTML = '<span class="text-xs font-semibold text-gray-700">iyzico ile Öde</span>';
+                    }
+                  }}
+                />
               </div>
               <div className="flex items-center gap-2">
                 <div className="bg-white rounded px-3 py-2 h-6 flex items-center">
