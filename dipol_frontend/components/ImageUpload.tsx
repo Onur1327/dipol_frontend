@@ -195,6 +195,13 @@ export default function ImageUpload({
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
+              <button
+                type="button"
+                onClick={() => onChange('')}
+                className="mt-2 text-sm text-red-600 hover:text-red-800"
+              >
+                Görseli Kaldır
+              </button>
             </div>
           )}
         </div>
