@@ -148,7 +148,7 @@ export default async function Home() {
         image: '/hero-3.jpg',
         title: 'Özel İndirimler',
         subtitle: 'Seçili ürünlerde %50\'ye varan indirimler',
-        link: '/urunler',
+        link: '/urunler?onSale=true',
         buttonText: 'İndirimleri Gör',
       },
     ];

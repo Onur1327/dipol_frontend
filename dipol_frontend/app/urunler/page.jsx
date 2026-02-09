@@ -15,6 +15,7 @@ async function getProducts(searchParams) {
     const query = new URLSearchParams();
     if (params.category) query.append('category', params.category);
     if (params.search) query.append('search', params.search);
+    if (params.onSale === 'true') query.append('onSale', 'true');
     query.append('page', (params.page || '1').toString());
     query.append('limit', '12');
 
