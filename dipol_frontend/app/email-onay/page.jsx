@@ -10,7 +10,7 @@ import Link from 'next/link';
 function EmailVerificationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState < 'loading' | 'success' | 'error' > ('loading');
+  const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
 
   useEffect(() => {
