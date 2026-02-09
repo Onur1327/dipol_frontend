@@ -134,7 +134,7 @@ export default function ProductDetail({ product }) {
       product: product._id,
       name: product.name,
       image: product.images[0],
-      price: product.price,
+      price: mainPrice,
       quantity,
       size: selectedSize || undefined,
       color: selectedColor || undefined,
@@ -292,10 +292,10 @@ export default function ProductDetail({ product }) {
                       onClick={() => setSelectedSize(size)}
                       disabled={isOutOfStock}
                       className={`px-5 py-3 border-2 rounded-lg font-semibold transition-all relative ${isSelected
-                          ? 'border-primary bg-primary text-white shadow-md scale-105'
-                          : isOutOfStock
-                            ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
-                            : 'border-gray-300 hover:border-primary hover:bg-gray-50'
+                        ? 'border-primary bg-primary text-white shadow-md scale-105'
+                        : isOutOfStock
+                          ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                          : 'border-gray-300 hover:border-primary hover:bg-gray-50'
                         }`}
                       title={isOutOfStock ? 'Stokta yok' : `${size} beden`}
                     >
@@ -360,10 +360,10 @@ export default function ProductDetail({ product }) {
                       }}
                       disabled={isOutOfStock}
                       className={`relative w-12 h-12 rounded-full border-2 transition-all ${isSelected
-                          ? 'border-primary scale-110 shadow-lg'
-                          : isOutOfStock
-                            ? 'border-gray-200 opacity-50 cursor-not-allowed'
-                            : 'border-gray-300 hover:border-primary hover:scale-105'
+                        ? 'border-primary scale-110 shadow-lg'
+                        : isOutOfStock
+                          ? 'border-gray-200 opacity-50 cursor-not-allowed'
+                          : 'border-gray-300 hover:border-primary hover:scale-105'
                         }`}
                       style={{ backgroundColor: colorHex }}
                       title={isOutOfStock ? `${color} - Stokta yok` : color}
@@ -448,8 +448,8 @@ export default function ProductDetail({ product }) {
               onClick={handleAddToCart}
               disabled={!hasValidSelection || availableStock === 0}
               className={`flex-1 py-4 rounded-lg font-semibold text-lg transition-colors ${!hasValidSelection || availableStock === 0
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-primary text-white hover:bg-primary-dark'
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-primary text-white hover:bg-primary-dark'
                 }`}
             >
               {!hasValidSelection
@@ -461,8 +461,8 @@ export default function ProductDetail({ product }) {
             <button
               onClick={toggleFavorite}
               className={`px-6 py-4 rounded-lg font-semibold text-lg transition-colors border-2 ${isFavorite
-                  ? 'border-pink-500 text-pink-500 bg-pink-50 hover:bg-pink-100'
-                  : 'border-gray-300 text-gray-700 hover:border-pink-500 hover:text-pink-500'
+                ? 'border-pink-500 text-pink-500 bg-pink-50 hover:bg-pink-100'
+                : 'border-gray-300 text-gray-700 hover:border-pink-500 hover:text-pink-500'
                 }`}
               title={isFavorite ? 'Favorilerden Kaldır' : 'Favorilere Ekle'}
             >
