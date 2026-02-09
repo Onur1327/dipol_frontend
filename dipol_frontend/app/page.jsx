@@ -101,12 +101,19 @@ async function getFeaturedCategories() {
   }
 }
 
+import CategoryCard from '@/components/CategoryCard';
+
+// ... (existing imports)
+
+// ... (existing code)
+
 export default async function Home() {
   // Verileri paralel olarak çekerek performansı optimize et
-  const [featuredProducts, newProducts, carousels] = await Promise.all([
+  const [featuredProducts, newProducts, carousels, featuredCategories] = await Promise.all([
     getFeaturedProducts(),
     getNewProducts(),
-    getCarousels()
+    getCarousels(),
+    getFeaturedCategories()
   ]);
 
   // Hero carousel slides - Backend'den geliyorsa onları kullan, yoksa varsayılanları
@@ -157,13 +164,28 @@ export default async function Home() {
         <HeroCarousel slides={heroSlides} />
       </section>
 
-      {/* Category Cards */}
-      {/* Featured Products (Öne Çıkanlar) replaces Categories */}
+      {/* Featured Categories (Admin Panelden Seçilenler) */}
+      {featuredCategories.length > 0 && (
+        <section className="py-12 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-8 text-center">
+              Öne Çıkan Kategoriler
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {featuredCategories.map((category) => (
+                <CategoryCard key={category._id} category={category} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Featured Products (Öne Çıkanlar) */}
       {featuredProducts.length > 0 && (
         <section className="py-12 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-8 text-center">
-              Öne Çıkanlar
+              Öne Çıkan Ürünler
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredProducts.map((product) => (
