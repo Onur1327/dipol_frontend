@@ -18,7 +18,7 @@ async function getProducts(searchParams) {
     query.append('page', (params.page || '1').toString());
     query.append('limit', '12');
 
-    const res = await serverApiRequest(`/api/products?${query.toString()}`);
+    const res = await serverApiRequest(`/api/products?${query.toString()}`, { cache: 'no-store' });
     if (!res.ok) {
       console.error('Ürünler API hatası:', res.status, res.statusText);
       return { products: [], pagination: {} };
