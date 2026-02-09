@@ -11,7 +11,7 @@ import { serverApiRequest } from '@/lib/api';
 async function getProduct(slug) {
   try {
     // Slug ile direkt ürün getir - server-side için
-    const response = await serverApiRequest(`/api/products/${slug}`);
+    const response = await serverApiRequest(`/api/products/${slug}`, { cache: 'no-store' });
 
     if (response.ok) {
       return await response.json();
