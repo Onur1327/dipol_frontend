@@ -16,6 +16,7 @@ const FINAL_API_URL = rawApiUrl.replace(/\/+$/, '');
 
 // Client-side cache storage
 const apiCache = new Map();
+const pendingRequests = new Map();
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
 // Server-side için API isteği
@@ -69,35 +70,52 @@ export async function apiRequest(endpoint, options = {}) {
   const cleanEndpoint = endpoint.replace(/^\/+/, '');
   const url = endpoint.startsWith('http') ? endpoint : `${FINAL_API_URL}/${cleanEndpoint}`;
 
-  // if (typeof window !== 'undefined') {
-  //   console.log(`[API Request] ${options.method || 'GET'} ${url}`, { headers, hasToken: !!token });
-  // }
-
-  // Cache Logic
+  // 1. Önce tamamlanmış önbelleğe bak (Sadece GET için)
   if (options.enableCache && (!options.method || options.method === 'GET')) {
     const cachedItem = apiCache.get(url);
     if (cachedItem && Date.now() - cachedItem.timestamp < CACHE_DURATION) {
-      // if (typeof window !== 'undefined') {
-      //   console.log(`[API Cache Hit] ${url}`);
-      // }
       return cachedItem.response.clone();
     }
   }
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      headers,
-      credentials: 'include',
-    });
-
-    if (options.enableCache && response.ok && (!options.method || options.method === 'GET')) {
-      apiCache.set(url, {
-        timestamp: Date.now(),
-        response: response.clone(),
-      });
+  // 2. Devam eden bir istek var mı kontrol et (Sadece GET için)
+  if (!options.method || options.method === 'GET') {
+    if (pendingRequests.has(url)) {
+      const response = await pendingRequests.get(url);
+      return response.clone();
     }
+  }
+
+  // Yeni bir istek başlat
+  const fetchPromise = (async () => {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include',
+      });
+
+      if (options.enableCache && response.ok && (!options.method || options.method === 'GET')) {
+        apiCache.set(url, {
+          timestamp: Date.now(),
+          response: response.clone(),
+        });
+      }
+
+      return response;
+    } finally {
+      // İstek tamamlandığında bekleyenler listesinden çıkar
+      pendingRequests.delete(url);
+    }
+  })();
+
+  // Sadece GET isteklerini bekleyenlere ekle
+  if (!options.method || options.method === 'GET') {
+    pendingRequests.set(url, fetchPromise);
+  }
+
+  try {
+    const response = await fetchPromise;
 
     if (typeof window !== 'undefined') {
       const logData = {

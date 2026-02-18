@@ -1,8 +1,8 @@
+import React from "react";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
-import FloatingButtons from "@/components/FloatingButtons";
-import CookieBanner from "@/components/CookieBanner";
+import ClientOnly from "@/components/ClientOnly";
 
 export const metadata = {
   title: "Dipol Butik - Kadın Giyim",
@@ -14,12 +14,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr" data-scroll-behavior="smooth">
-      <body>
+      <body className="antialiased">
         <AuthProvider>
           <CartProvider>
-            {children}
-            <FloatingButtons />
-            <CookieBanner />
+            <ClientOnly>
+              {children}
+            </ClientOnly>
           </CartProvider>
         </AuthProvider>
       </body>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
@@ -10,8 +10,9 @@ import { api } from '@/lib/api';
 
 export default function CheckoutPage() {
   const { items, total, shippingCost, finalTotal, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -20,8 +21,9 @@ export default function CheckoutPage() {
     city: '',
     postalCode: '',
     country: 'Türkiye',
-    identityNumber: '', // TC Kimlik Numarası
+    identityNumber: '',
   });
+
   const [cardData, setCardData] = useState({
     cardHolderName: '',
     cardNumber: '',
@@ -29,10 +31,30 @@ export default function CheckoutPage() {
     expireYear: '',
     cvc: '',
   });
+
   const [submitting, setSubmitting] = useState(false);
+  const searchParams = useSearchParams();
+  const [isClient, setIsClient] = useState(false);
 
+  useEffect(() => {
+    setIsClient(true);
+    const error = searchParams.get('error');
+    if (error) {
+      const messages = {
+        'DogrulamaHatasi': 'Ödeme doğrulanamadı. Lütfen bankanızla iletişime geçin veya tekrar deneyin.',
+        'OdemeBasarisiz': 'Ödeme işlemi başarısız oldu.',
+        'SiparisBulunamadi': 'Sipariş bulunamadı.',
+        'SistemselHata': 'Sistemsel bir hata oluştu.',
+        'SiparisIDBulunamadi': 'Sipariş numarası bulunamadı.'
+      };
+      alert(messages[error] || 'Bir hata oluştu: ' + error);
+      // Temizlemek için URL'i güncelle (isteğe bağlı ama kullanıcı deneyimi için iyi)
+      // router.replace('/odeme', { scroll: false }); 
+    }
+  }, [searchParams]);
 
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
+    if (!user) return;
     try {
       const res = await api.getCurrentUser();
       if (res.ok) {
@@ -48,31 +70,34 @@ export default function CheckoutPage() {
           country: userData.address?.country || 'Türkiye',
           identityNumber: userData.identityNumber || '',
         }));
-        // Kart sahibi adını da doldur
         setCardData(prev => ({
           ...prev,
-          cardHolderName: userData.name || '',
+          cardHolderName: (userData.name || '').toUpperCase(),
         }));
       }
     } catch (error) {
       console.error('Kullanıcı bilgileri yüklenemedi:', error);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
+    if (loading || !isClient) return;
+
     if (!user) {
       router.push('/giris');
       return;
     }
+
+    // Redirect logic with check for already being at checkout
     if (items.length === 0) {
       router.push('/sepet');
       return;
     }
-    fetchUserData();
-  }, [user, items, router]);
 
-  // Kart numarası formatlama
-  const formatCardNumber = (value) => {
+    fetchUserData();
+  }, [user, items.length, router, loading, isClient, fetchUserData]);
+
+  const formatCardNumber = useCallback((value) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
     const matches = v.match(/\d{4,16}/g);
     const match = matches && matches[0] || '';
@@ -80,26 +105,23 @@ export default function CheckoutPage() {
     for (let i = 0, len = match.length; i < len; i += 4) {
       parts.push(match.substring(i, i + 4));
     }
-    if (parts.length) {
-      return parts.join(' ');
-    } else {
-      return v;
-    }
-  };
+    return parts.length ? parts.join(' ') : v;
+  }, []);
 
-  // TC Kimlik numarası formatlama ve doğrulama
   const handleIdentityNumberChange = (e) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 11);
-    setFormData({ ...formData, identityNumber: value });
+    setFormData(prev => ({ ...prev, identityNumber: value }));
   };
 
   const handleCardNumberChange = (e) => {
     const formatted = formatCardNumber(e.target.value);
-    setCardData({ ...cardData, cardNumber: formatted });
+    setCardData(prev => ({ ...prev, cardNumber: formatted }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+
     try {
       setSubmitting(true);
 
@@ -108,7 +130,7 @@ export default function CheckoutPage() {
           product: item.product,
           name: item.name,
           image: item.image || '',
-          price: item.price,
+          price: Number(item.price.toFixed(2)),
           quantity: item.quantity,
           size: item.size,
           color: item.color,
@@ -132,17 +154,31 @@ export default function CheckoutPage() {
           expireYear: cardData.expireYear,
           cvc: cardData.cvc,
         },
-        totalPrice: finalTotal,
-        shippingCost: shippingCost,
+        totalPrice: Number(finalTotal.toFixed(2)),
+        shippingCost: Number(shippingCost.toFixed(2)),
       };
 
-      const res = await api.initializePayment(paymentData);
+      console.log('Payment submission started');
+
+      // 30 saniyelik zaman aşımı (Timeout) kontrolü
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Payment timeout')), 30000);
+      });
+
+      console.log('Sending request to backend...');
+      // Race between payment request and timeout
+      const res = await Promise.race([
+        api.initializePayment(paymentData),
+        timeoutPromise
+      ]);
+
+      console.log('Backend response received', res.status);
       const result = await res.json();
+      console.log('Backend result parsed', result);
 
       if (res.ok && result.success) {
         if (result.threeDSHtmlContent) {
-          // 3D Secure HTML'ini güvenli ve doğrudan sayfaya bas
-          // document.write en eski ama bu tip formlar için en garantili yöntemdir
+          console.log('3D Secure content received, rendering...');
           const newDoc = document.open('text/html', 'replace');
           newDoc.write(result.threeDSHtmlContent);
           newDoc.close();
@@ -153,18 +189,38 @@ export default function CheckoutPage() {
         alert('Ödemeniz başarıyla tamamlandı!');
         router.push('/siparisler');
       } else {
+        console.error('Payment failed with result:', result);
         alert(result.error || 'Ödeme işlemi başarısız oldu. Lütfen tekrar deneyin.');
       }
     } catch (error) {
       console.error('Ödeme hatası:', error);
-      alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+      if (error.message === 'Payment timeout') {
+        alert('Ödeme işlemi zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
+      } else {
+        alert('Bir hata oluştu. Lütfen tekrar deneyin: ' + error.message);
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!user || items.length === 0) {
-    return null;
+  const orderSummary = useMemo(() => (
+    <div className="space-y-3 mb-6">
+      {items.map((item, index) => (
+        <div key={index} className="flex justify-between text-sm">
+          <span>{item.name} x {item.quantity}</span>
+          <span>{(item.price * item.quantity).toFixed(2)} ₺</span>
+        </div>
+      ))}
+    </div>
+  ), [items]);
+
+  if (!isClient || loading || !user || items.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (
@@ -174,17 +230,13 @@ export default function CheckoutPage() {
         <div className="max-w-4xl mx-auto px-4">
           <h1 className="text-4xl font-bold text-gray-800 mb-8">Ödeme</h1>
 
-
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 space-y-6">
                 <h2 className="text-2xl font-bold mb-4">Teslimat Bilgileri</h2>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ad Soyad *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ad Soyad *</label>
                   <input
                     type="text"
                     value={formData.name}
@@ -196,9 +248,7 @@ export default function CheckoutPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      E-posta *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">E-posta *</label>
                     <input
                       type="email"
                       value={formData.email}
@@ -208,9 +258,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telefon *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefon *</label>
                     <input
                       type="tel"
                       value={formData.phone}
@@ -222,9 +270,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Adres *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Adres *</label>
                   <textarea
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -236,9 +282,7 @@ export default function CheckoutPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Şehir *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Şehir *</label>
                     <input
                       type="text"
                       value={formData.city}
@@ -248,9 +292,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Posta Kodu *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Posta Kodu *</label>
                     <input
                       type="text"
                       value={formData.postalCode}
@@ -260,9 +302,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ülke *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ülke *</label>
                     <input
                       type="text"
                       value={formData.country}
@@ -275,11 +315,8 @@ export default function CheckoutPage() {
 
                 <div className="border-t pt-6">
                   <h2 className="text-2xl font-bold mb-4">Kimlik Bilgileri</h2>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      TC Kimlik Numarası *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">TC Kimlik Numarası *</label>
                     <input
                       type="text"
                       value={formData.identityNumber}
@@ -289,17 +326,13 @@ export default function CheckoutPage() {
                       maxLength={11}
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">TC Kimlik numaranız sadece ödeme işlemi için kullanılacaktır.</p>
                   </div>
                 </div>
 
                 <div className="border-t pt-6">
                   <h2 className="text-2xl font-bold mb-4">Kredi Kartı Bilgileri</h2>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kart Sahibi Adı Soyadı *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Kart Sahibi Adı Soyadı *</label>
                     <input
                       type="text"
                       value={cardData.cardHolderName}
@@ -309,11 +342,8 @@ export default function CheckoutPage() {
                       required
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Kart Numarası *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Kart Numarası *</label>
                     <input
                       type="text"
                       value={cardData.cardNumber}
@@ -324,21 +354,13 @@ export default function CheckoutPage() {
                       required
                     />
                   </div>
-
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Ay *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ay *</label>
                       <input
                         type="text"
                         value={cardData.expireMonth}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, '').slice(0, 2);
-                          if (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 12)) {
-                            setCardData({ ...cardData, expireMonth: value });
-                          }
-                        }}
+                        onChange={(e) => setCardData({ ...cardData, expireMonth: e.target.value.replace(/\D/g, '').slice(0, 2) })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="MM"
                         maxLength={2}
@@ -346,16 +368,11 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Yıl *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Yıl *</label>
                       <input
                         type="text"
                         value={cardData.expireYear}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, '').slice(0, 2);
-                          setCardData({ ...cardData, expireYear: value });
-                        }}
+                        onChange={(e) => setCardData({ ...cardData, expireYear: e.target.value.replace(/\D/g, '').slice(0, 2) })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="YY"
                         maxLength={2}
@@ -363,16 +380,11 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        CVV *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">CVV *</label>
                       <input
                         type="text"
                         value={cardData.cvc}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, '').slice(0, 3);
-                          setCardData({ ...cardData, cvc: value });
-                        }}
+                        onChange={(e) => setCardData({ ...cardData, cvc: e.target.value.replace(/\D/g, '').slice(0, 3) })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="123"
                         maxLength={3}
@@ -389,56 +401,13 @@ export default function CheckoutPage() {
                 >
                   {submitting ? 'Ödeme İşleniyor...' : `${finalTotal.toFixed(2)} ₺ Öde`}
                 </button>
-
-                {/* Ödeme Logoları */}
-                <div className="border-t pt-6 mt-6">
-                  <p className="text-sm text-gray-600 mb-3 text-center">Güvenli Ödeme</p>
-                  <div className="flex items-center justify-center gap-4 flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src="/iyzico.png"
-                        alt="iyzico ile Öde"
-                        className="h-8 object-contain"
-                        onError={(e) => {
-                          // Görsel yüklenemezse metin göster
-                          e.target.style.display = 'none';
-                          const parent = e.target.parentElement;
-                          if (parent) {
-                            parent.innerHTML = '<span class="text-sm font-semibold text-gray-700">iyzico ile Öde</span>';
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-white border border-gray-300 rounded px-3 py-2 h-8 flex items-center">
-                        <span className="text-lg font-bold text-blue-600">VISA</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-white border border-gray-300 rounded px-3 py-2 h-8 flex items-center">
-                        <span className="text-lg font-bold" style={{ color: '#EB001B' }}>Master</span>
-                        <span className="text-lg font-bold" style={{ color: '#F79E1B' }}>card</span>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-3 text-center">
-                    Ödeme işlemleriniz SSL sertifikası ile korunmaktadır.
-                  </p>
-                </div>
               </form>
             </div>
 
             <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
                 <h2 className="text-2xl font-bold mb-4">Sipariş Özeti</h2>
-                <div className="space-y-3 mb-6">
-                  {items.map((item, index) => (
-                    <div key={index} className="flex justify-between text-sm">
-                      <span>{item.name} x {item.quantity}</span>
-                      <span>{(item.price * item.quantity).toFixed(2)} ₺</span>
-                    </div>
-                  ))}
-                </div>
+                {orderSummary}
                 <div className="border-t pt-3 space-y-2">
                   <div className="flex justify-between">
                     <span>Ara Toplam:</span>

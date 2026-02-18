@@ -154,21 +154,21 @@ export function CartProvider({ children }) {
   const shippingCost = total >= shippingSettings.freeShippingThreshold ? 0 : shippingSettings.shippingCost;
   const finalTotal = total + shippingCost;
 
+  const value = React.useMemo(() => ({
+    items,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    total,
+    shippingCost,
+    finalTotal,
+    itemCount,
+    freeShippingThreshold: shippingSettings.freeShippingThreshold,
+  }), [items, total, shippingCost, finalTotal, itemCount, shippingSettings.freeShippingThreshold]);
+
   return (
-    <CartContext.Provider
-      value={{
-        items,
-        addItem,
-        removeItem,
-        updateQuantity,
-        clearCart,
-        total,
-        shippingCost,
-        finalTotal,
-        itemCount,
-        freeShippingThreshold: shippingSettings.freeShippingThreshold,
-      }}
-    >
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   );
