@@ -1,13 +1,15 @@
-// Backend API URL - Geliştirmede localhost, production'da Vercel backend kullan
 const getApiUrl = () => {
+  // 1. Ortam değişkeni varsa en öncelikli odur
   if (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.trim().length > 0) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
 
+  // 2. Geliştirme ortamı için localhost
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:3002';
   }
 
+  // 3. Üretim ortamı için bilinen varsayılan adres
   return 'https://dipol-backend.vercel.app';
 };
 
