@@ -20,16 +20,21 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (isSuccess) {
+      console.log('Payment success detected, clearing cart and preparing redirect...');
       setShowSuccessOverlay(true);
       clearCart();
       
       const timer = setTimeout(() => {
-        router.push('/');
-      }, 3000);
+        console.log('Redirecting to home page...');
+        // router.push bazen App Router'da takılabiliyor, garantici olmak için:
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      }, 2500);
 
       return () => clearTimeout(timer);
     }
-  }, [isSuccess, clearCart, router]);
+  }, [isSuccess, clearCart]); // router bağımlılığını çıkardık çakışmayı önlemek için
 
   const fetchOrders = async () => {
     try {
@@ -169,8 +174,16 @@ export default function OrdersPage() {
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Ödeme Başarılı!</h2>
             <p className="text-gray-600 mb-6">Siparişiniz başarıyla alındı. Ana sayfaya yönlendiriliyorsunuz...</p>
+            
+            <button 
+              onClick={() => window.location.href = '/'}
+              className="mb-8 px-6 py-2 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 transition-colors"
+            >
+              Hemen Ana Sayfaya Git
+            </button>
+
             <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-green-500 h-full animate-[progress_3s_linear]" style={{ width: '100%' }}></div>
+              <div className="bg-green-500 h-full animate-[progress_2.5s_linear]" style={{ width: '100%' }}></div>
             </div>
           </div>
         </div>
