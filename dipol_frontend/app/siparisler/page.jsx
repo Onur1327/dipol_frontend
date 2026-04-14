@@ -1,17 +1,35 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { api } from '@/lib/api';
 
 export default function OrdersPage() {
   const { user, loading } = useAuth();
+  const { clearCart } = useCart();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isSuccess = searchParams.get('success') === 'true';
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
+
+  useEffect(() => {
+    if (isSuccess) {
+      setShowSuccessOverlay(true);
+      clearCart();
+      
+      const timer = setTimeout(() => {
+        router.push('/');
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, clearCart, router]);
 
   const fetchOrders = async () => {
     try {
@@ -139,6 +157,31 @@ export default function OrdersPage() {
         </div>
       </div>
       <Footer />
+
+      {/* Başarı Mesajı Overlay */}
+      {showSuccessOverlay && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm mx-4 transform animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Ödeme Başarılı!</h2>
+            <p className="text-gray-600 mb-6">Siparişiniz başarıyla alındı. Ana sayfaya yönlendiriliyorsunuz...</p>
+            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-green-500 h-full animate-[progress_3s_linear]" style={{ width: '100%' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes progress {
+          from { width: 0%; }
+          to { width: 100%; }
+        }
+      `}</style>
     </div>
   );
 }
